@@ -31,12 +31,14 @@ public class PlayerAnimationController : MonoBehaviour
     private const string SPEED_PARAM = "speed";
     private const string JUMP_TRIG = "jump_trig";
     private const string SLIDE_TRIG = "slide_trig";
+    private const string DIE_TRIG = "die_trig";
 
     private Vector3 velocity;
     private bool isGrounded;
     private bool isFastFalling;
     private bool isSliding;
     private float slideTimer;
+    private bool isDead = false;
 
     private int currentLane = 0;
     private int jumpCount = 0;
@@ -48,13 +50,14 @@ public class PlayerAnimationController : MonoBehaviour
 
         animator.SetFloat(SPEED_PARAM, 1f);
 
-        // Запоминаем нормальные размеры из инспектора, если не заданы вручную
         if (normalHeight == 0f) normalHeight = controller.height;
         if (normalCenterY == 0f) normalCenterY = controller.center.y;
     }
 
     private void Update()
     {
+        if (isDead) return;
+
         isGrounded = controller.isGrounded;
 
         if (isGrounded && velocity.y < 0f)
@@ -70,6 +73,20 @@ public class PlayerAnimationController : MonoBehaviour
         UpdateSlideTimer();
         ApplyGravity();
         MoveCharacter();
+    }
+
+    public void Die()
+    {
+        if (isDead) return;
+
+        isDead = true;
+        velocity = Vector3.zero;
+
+        Debug.Log("Die() вызван!");
+
+        animator.ResetTrigger(JUMP_TRIG);
+        animator.ResetTrigger(SLIDE_TRIG);
+        animator.SetTrigger(DIE_TRIG);
     }
 
     private void HandleLaneInput()
@@ -93,7 +110,6 @@ public class PlayerAnimationController : MonoBehaviour
             velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
             jumpCount++;
 
-            // Прыжок прерывает подкат — возвращаем нормальный коллайдер
             if (isSliding)
             {
                 isSliding = false;
@@ -118,7 +134,6 @@ public class PlayerAnimationController : MonoBehaviour
             isSliding = true;
             slideTimer = 0f;
 
-            // Сжимаем коллайдер
             SetColliderSlide();
 
             if (!isGrounded)
@@ -134,7 +149,6 @@ public class PlayerAnimationController : MonoBehaviour
         if (slideTimer >= slideDuration)
         {
             isSliding = false;
-            // Возвращаем нормальный коллайдер
             SetColliderNormal();
         }
     }
