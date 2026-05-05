@@ -198,6 +198,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerCollision
   coinsText: {fileID: 1347309010}
+  animationController: {fileID: 177234506}
   coins: 0
   hitObstacle: 0
 --- !u!1 &330585543
