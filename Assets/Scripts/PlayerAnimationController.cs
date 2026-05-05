@@ -1,4 +1,6 @@
 using UnityEngine;
+using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class PlayerAnimationController : MonoBehaviour
 {
@@ -87,8 +89,32 @@ public class PlayerAnimationController : MonoBehaviour
         animator.ResetTrigger(JUMP_TRIG);
         animator.ResetTrigger(SLIDE_TRIG);
         animator.SetTrigger(DIE_TRIG);
-    }
 
+        // Запускаем корутину - ждем анимацию и переходим в меню
+        StartCoroutine(GoToMenuAfterDeath());
+    }
+    private IEnumerator GoToMenuAfterDeath()
+    {
+        // Ждем пока аниматор не начнет воспроизводить состояние смерти
+        yield return null;
+        yield return null;
+
+        // Получаем длину анимации смерти
+        AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
+        float deathAnimLength = stateInfo.length;
+
+        // Ждем чуть дольше анимации для красоты
+        yield return new WaitForSeconds(deathAnimLength + 1.5f);
+
+        // Передаем монеты в GameManager
+        PlayerCollision playerCollision = GetComponent<PlayerCollision>();
+        int coins = playerCollision != null ? playerCollision.coins : 0;
+
+        if (GameManager.Instance != null)
+            GameManager.Instance.GameOver(coins);
+        else
+            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+    }
     private void HandleLaneInput()
     {
         if (Input.GetKeyDown(KeyCode.A))
