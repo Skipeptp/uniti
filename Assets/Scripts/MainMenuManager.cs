@@ -4,12 +4,12 @@ using TMPro;
 
 public class MainMenuManager : MonoBehaviour
 {
-    [Header("Панели")]
+    [Header("Panels")]
     public GameObject mainPanel;
     public GameObject instructionPanel;
     public GameObject resultsPanel;
 
-    [Header("Текст результатов")]
+    [Header("Results Text")]
     public TextMeshProUGUI lastCoinsText;
     public TextMeshProUGUI recordText;
 
@@ -27,14 +27,35 @@ public class MainMenuManager : MonoBehaviour
 
     public void OnResultsButton()
     {
+        int last = PlayerPrefs.GetInt("LastCoins", 0);
+        int rec = PlayerPrefs.GetInt("RecordCoins", 0);
+
+        Debug.Log("LastCoins from PlayerPrefs: " + last);
+        Debug.Log("RecordCoins from PlayerPrefs: " + rec);
+        Debug.Log("lastCoinsText is null: " + (lastCoinsText == null));
+        Debug.Log("recordText is null: " + (recordText == null));
+
         if (lastCoinsText != null)
-            lastCoinsText.text = "Последний забег: " + PlayerPrefs.GetInt("LastCoins", 0) + " монет";
+            lastCoinsText.text = "Последний забег: " + last + " монет";
         if (recordText != null)
-            recordText.text = "Рекорд: " + PlayerPrefs.GetInt("RecordCoins", 0) + " монет";
+            recordText.text = "Рекорд: " + rec + " монет";
 
         if (mainPanel != null) mainPanel.SetActive(false);
         if (instructionPanel != null) instructionPanel.SetActive(false);
         if (resultsPanel != null) resultsPanel.SetActive(true);
+    }
+    public void OnResetRecord()
+    {
+        PlayerPrefs.SetInt("RecordCoins", 0);
+        PlayerPrefs.SetInt("LastCoins", 0);
+        PlayerPrefs.Save();
+
+        if (lastCoinsText != null)
+            lastCoinsText.text = "Последний забег: 0 монет";
+        if (recordText != null)
+            recordText.text = "Рекорд: 0 монет";
+
+        Debug.Log("Record reset!");
     }
 
     public void OnInstructionButton()

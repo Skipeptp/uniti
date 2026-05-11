@@ -163,9 +163,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimationController
   animator: {fileID: 177234507}
   controller: {fileID: 177234505}
-  forwardSpeed: 3
   laneDistance: 3
-  laneChangeSpeed: 10
+  laneChangeSpeed: 6
+  minSpeed: 6
+  maxSpeed: 12
+  timeToMaxSpeed: 120
   jumpHeight: 4
   maxJumps: 2
   gravity: -20
@@ -175,6 +177,7 @@ MonoBehaviour:
   normalCenterY: 0.9
   slideHeight: 0.9
   slideCenterY: 0.45
+  playerCollision: {fileID: 177234509}
 --- !u!95 &177234507 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: fd9659b72f46a1c4fa45ad2ffb9ffc37, type: 3}

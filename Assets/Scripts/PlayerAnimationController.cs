@@ -9,9 +9,13 @@ public class PlayerAnimationController : MonoBehaviour
     [SerializeField] private CharacterController controller;
 
     [Header("Movement")]
-    [SerializeField] private float forwardSpeed = 7f;
     [SerializeField] private float laneDistance = 3f;
-    [SerializeField] private float laneChangeSpeed = 10f;
+    [SerializeField] private float laneChangeSpeed = 8f;
+
+    [Header("Speed Progression")]
+    [SerializeField] private float minSpeed = 6f;
+    [SerializeField] private float maxSpeed = 12f;
+    [SerializeField] private float timeToMaxSpeed = 120f;
 
     [Header("Jump")]
     [SerializeField] private float jumpHeight = 2f;
@@ -24,16 +28,22 @@ public class PlayerAnimationController : MonoBehaviour
     [Header("Slide")]
     [SerializeField] private float slideDuration = 0.6f;
 
-    [Header("Collider размеры")]
+    [Header("Collider sizes")]
     [SerializeField] private float normalHeight = 1.8f;
     [SerializeField] private float normalCenterY = 0.9f;
     [SerializeField] private float slideHeight = 0.9f;
     [SerializeField] private float slideCenterY = 0.45f;
 
+    [Header("Player Collision Reference")]
+    [SerializeField] private PlayerCollision playerCollision;
+
     private const string SPEED_PARAM = "speed";
     private const string JUMP_TRIG = "jump_trig";
     private const string SLIDE_TRIG = "slide_trig";
     private const string DIE_TRIG = "die_trig";
+
+    private float forwardSpeed;
+    private float elapsedTime = 0f;
 
     private Vector3 velocity;
     private bool isGrounded;
@@ -49,7 +59,9 @@ public class PlayerAnimationController : MonoBehaviour
     {
         if (animator == null) animator = GetComponent<Animator>();
         if (controller == null) controller = GetComponent<CharacterController>();
+        if (playerCollision == null) playerCollision = GetComponent<PlayerCollision>();
 
+        forwardSpeed = minSpeed;
         animator.SetFloat(SPEED_PARAM, 1f);
 
         if (normalHeight == 0f) normalHeight = controller.height;
@@ -59,6 +71,10 @@ public class PlayerAnimationController : MonoBehaviour
     private void Update()
     {
         if (isDead) return;
+
+        // Нарастание скорости со временем
+        elapsedTime += Time.deltaTime;
+        forwardSpeed = Mathf.Lerp(minSpeed, maxSpeed, elapsedTime / timeToMaxSpeed);
 
         isGrounded = controller.isGrounded;
 
@@ -84,44 +100,52 @@ public class PlayerAnimationController : MonoBehaviour
         isDead = true;
         velocity = Vector3.zero;
 
-        Debug.Log("Die() вызван!");
+        Debug.Log("Die() called!");
 
         animator.ResetTrigger(JUMP_TRIG);
         animator.ResetTrigger(SLIDE_TRIG);
         animator.SetTrigger(DIE_TRIG);
 
-        // Запускаем корутину - ждем анимацию и переходим в меню
         StartCoroutine(GoToMenuAfterDeath());
     }
+
     private IEnumerator GoToMenuAfterDeath()
     {
-        // Ждем пока аниматор не начнет воспроизводить состояние смерти
         yield return null;
         yield return null;
 
-        // Получаем длину анимации смерти
         AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
         float deathAnimLength = stateInfo.length;
+        Debug.Log("Death anim length: " + deathAnimLength);
 
-        // Ждем чуть дольше анимации для красоты
         yield return new WaitForSeconds(deathAnimLength + 1.5f);
 
-        // Передаем монеты в GameManager
-        PlayerCollision playerCollision = GetComponent<PlayerCollision>();
-        int coins = playerCollision != null ? playerCollision.coins : 0;
-
-        if (GameManager.Instance != null)
-            GameManager.Instance.GameOver(coins);
+        int coins = 0;
+        if (playerCollision != null)
+        {
+            coins = playerCollision.coins;
+            Debug.Log("Coins collected: " + coins);
+        }
         else
-            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+        {
+            Debug.LogError("playerCollision is NULL! Assign it in Inspector.");
+        }
+
+        PlayerPrefs.SetInt("LastCoins", coins);
+        int record = PlayerPrefs.GetInt("RecordCoins", 0);
+        if (coins > record)
+            PlayerPrefs.SetInt("RecordCoins", coins);
+        PlayerPrefs.Save();
+
+        Debug.Log("Saved LastCoins: " + coins + " | Record: " + PlayerPrefs.GetInt("RecordCoins", 0));
+
+        SceneManager.LoadScene("MainMenu");
     }
+
     private void HandleLaneInput()
     {
-        if (Input.GetKeyDown(KeyCode.A))
-            ChangeLane(-1);
-
-        if (Input.GetKeyDown(KeyCode.D))
-            ChangeLane(1);
+        if (Input.GetKeyDown(KeyCode.A)) ChangeLane(-1);
+        if (Input.GetKeyDown(KeyCode.D)) ChangeLane(1);
     }
 
     private void ChangeLane(int direction)
@@ -144,7 +168,6 @@ public class PlayerAnimationController : MonoBehaviour
             }
 
             isFastFalling = false;
-
             animator.ResetTrigger(SLIDE_TRIG);
             animator.SetTrigger(JUMP_TRIG);
         }
@@ -159,18 +182,15 @@ public class PlayerAnimationController : MonoBehaviour
 
             isSliding = true;
             slideTimer = 0f;
-
             SetColliderSlide();
 
-            if (!isGrounded)
-                isFastFalling = true;
+            if (!isGrounded) isFastFalling = true;
         }
     }
 
     private void UpdateSlideTimer()
     {
         if (!isSliding) return;
-
         slideTimer += Time.deltaTime;
         if (slideTimer >= slideDuration)
         {
@@ -194,22 +214,16 @@ public class PlayerAnimationController : MonoBehaviour
     private void ApplyGravity()
     {
         float currentGravity = gravity;
-
         if (isFastFalling && velocity.y < 0f && !isGrounded)
             currentGravity *= fastFallMultiplier;
-
         velocity.y += currentGravity * Time.deltaTime;
     }
 
     private void MoveCharacter()
     {
         float targetX = currentLane * laneDistance;
-        float diffX = targetX - transform.position.x;
-
-        float moveX = diffX * laneChangeSpeed;
-
-        if (Mathf.Abs(moveX * Time.deltaTime) > Mathf.Abs(diffX))
-            moveX = diffX / Time.deltaTime;
+        float smoothX = Mathf.Lerp(transform.position.x, targetX, laneChangeSpeed * Time.deltaTime);
+        float moveX = (smoothX - transform.position.x) / Time.deltaTime;
 
         Vector3 horizontalMove = new Vector3(moveX, 0f, forwardSpeed);
         controller.Move((horizontalMove + velocity) * Time.deltaTime);
